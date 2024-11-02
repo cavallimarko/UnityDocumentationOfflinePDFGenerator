@@ -1,11 +1,12 @@
 # Unity Documentation to PDF Converter
 
-A Python tool that converts Unity's offline documentation into a single, searchable PDF file. This tool preserves the documentation's structure while optimizing it for PDF reading.
+A Python tool that converts Unity's offline documentation into a single, searchable PDF file. This tool preserves the documentation's structure and hierarchy based on Unity's official table of contents.
 
 ## Features
 
 - Converts Unity Manual documentation to a single PDF file
-- Maintains document hierarchy and structure
+- Maintains original documentation hierarchy from Unity's TOC
+- Preserves document structure and nesting levels
 - Optimizes text formatting and readability
 - Processes documentation in small batches to manage memory usage
 - Includes progress tracking and logging
@@ -57,18 +58,30 @@ python docs_to_pdf.py --docs-folder "path/to/unity/documentation" --output "outp
 
 ## How It Works
 
-1. Starts from the main Unity Manual page (UnityManual.html)
-2. Recursively processes linked documentation pages
-3. Cleans and optimizes HTML content for PDF conversion
-4. Converts documentation in small batches
-5. Merges individual PDFs into a single file
-6. Removes temporary files
+1. Reads the Unity documentation's table of contents (toc.json)
+2. Creates a hierarchical structure of documentation pages
+3. Processes pages in the order defined by the TOC
+4. Maintains proper document nesting and hierarchy
+5. Converts documentation in small batches
+6. Merges individual PDFs into a single file
+7. Removes temporary files
+
+## Document Structure
+
+The PDF is generated following Unity's official documentation structure:
+- Unity User Manual
+  - Documentation versions
+  - Offline documentation
+  - Trademarks and terms of use
+- New Features
+- Package documentation
+- etc.
 
 ## Limitations
 
 - Currently processes only the Manual section (excludes Script Reference)
-- Limited to 35,000 pages to prevent excessive processing
 - Requires local Unity documentation files
+- Some interactive elements may not be preserved in PDF format
 
 ## License
 

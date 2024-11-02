@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 import logging
 import time
 import argparse
+import json
 
 class UnityDocConverter:
     def __init__(self, docs_folder, output_pdf):
@@ -63,29 +64,66 @@ class UnityDocConverter:
         
         return links
 
-    def create_pdf(self):
-        html_files = []
-        start_file = os.path.join(self.docs_folder, 'UnityManual.html')
-        
-        if not os.path.exists(start_file):
-            self.logger.error(f"Starting file not found: {start_file}")
-            return
-        
-        to_visit = [start_file]
-        
-        # Collect first 100 HTML files
-        while to_visit and len(html_files) < 35000:  # Added limit condition
-            current_file = to_visit.pop(0)
-            total_files = 35000  # Total number of HTML files
-            current_count = len(html_files)
-            percentage = (current_count / total_files) * 100
-            self.logger.info(f"Processing: {current_file} ({percentage:.1f}% completed, {current_count}/{total_files} files)")
+    def create_link_tree(self, toc_path):
+        """Create a hierarchical structure of links based on the TOC JSON"""
+        try:
+            with open(toc_path, 'r', encoding='utf-8') as f:
+                toc_data = json.load(f)
             
-            soup = self.parse_html_file(current_file)
-            if soup:
-                html_files.append(current_file)
-                to_visit.extend(self.get_links(soup, current_file))
+            def process_node(node, level=0, parent_link=None):
+                result = []
+                link = node.get('link', '')
+                title = node.get('title', '')
+                
+                # Skip root and null links
+                if link and link.lower() != 'null':
+                    # Construct full path
+                    if parent_link:
+                        full_path = os.path.normpath(os.path.join(os.path.dirname(parent_link), f"{link}.html"))
+                    else:
+                        full_path = os.path.join(self.docs_folder, f"{link}.html")
+                    
+                    result.append({
+                        'level': level,
+                        'path': full_path,
+                        'title': title.strip(),
+                        'children': []
+                    })
+                    current_link = full_path
+                else:
+                    current_link = parent_link
+                
+                # Process children
+                children = node.get('children', [])
+                if children:
+                    for child in children:
+                        child_results = process_node(child, level + 1, current_link)
+                        result.extend(child_results)
+                
+                return result
+            
+            return process_node(toc_data)
+        
+        except Exception as e:
+            self.logger.error(f"Error processing TOC: {str(e)}")
+            return []
 
+    def create_pdf(self):
+        """Modified create_pdf to use the link tree"""
+        # Create link tree from TOC
+        link_tree = self.create_link_tree(os.path.join(self.docs_folder, 'docdata/toc.json'))
+        
+        # Extract ordered list of files while preserving hierarchy
+        html_files = []
+        titles = {}
+        
+        for entry in link_tree:
+            path = entry['path']
+            if os.path.exists(path) and path not in self.visited_links:
+                html_files.append(path)
+                titles[path] = f"{'  ' * entry['level']}{entry['title']}"
+                self.visited_links.add(path)
+        
         # Configure PDF options
         options = {
             'page-size': 'A4',
